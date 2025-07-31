@@ -19,13 +19,13 @@ export interface WeightedActionButton {
 export type ActionButton = SimpleActionButton | WeightedActionButton;
 
 
-interface Range {
+export interface Range { // Export Range interface
   id: string;
   name: string;
   hands: Record<string, string>;
 }
 
-interface Folder {
+export interface Folder { // Export Folder interface
   id: string;
   name: string;
   ranges: Range[];

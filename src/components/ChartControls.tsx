@@ -35,7 +35,7 @@ export const ChartControls = ({
       )}>
         <Button onClick={onAddButton} className="flex items-center gap-2 h-7">
           <Plus className="h-4 w-4" />
-          Добавить кнопку
+        Создать кнопку
         </Button>
         <Button variant="ghost" size="icon" onClick={onMaximizeCanvas} title="Развернуть на весь экран">
           <Expand className="h-5 w-5" />

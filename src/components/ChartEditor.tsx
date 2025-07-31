@@ -27,7 +27,7 @@ export const ChartEditor = ({ isMobileMode = false, chart, onBackToCharts, onSav
   const [canvasHeight, setCanvasHeight] = useState(chart.canvasHeight || 500);
   const [isButtonModalOpen, setIsButtonModalOpen] = useState(false);
   const [editingButton, setEditingButton] = useState<ChartButton | null>(null);
-  const [isLegendPreviewOpen, setIsLegendPreviewOpen] = useState(false);
+  const [isLegendPreviewOpen, setIsLegendPreview] = useState(false); 
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -185,7 +185,7 @@ export const ChartEditor = ({ isMobileMode = false, chart, onBackToCharts, onSav
 
   const handleOpenLegendPreview = () => {
     if (editingButton) {
-      setIsLegendPreviewOpen(true);
+      setIsLegendPreview(true); 
     }
   };
 
@@ -194,7 +194,7 @@ export const ChartEditor = ({ isMobileMode = false, chart, onBackToCharts, onSav
       if (!prev) return null;
       return { ...prev, legendOverrides: newOverrides };
     });
-    setIsLegendPreviewOpen(false);
+    setIsLegendPreview(false); 
   };
 
   const linkedRangeForPreview = editingButton?.linkedItem ? allRanges.find(r => r.id === editingButton.linkedItem) : null;
@@ -251,12 +251,13 @@ export const ChartEditor = ({ isMobileMode = false, chart, onBackToCharts, onSav
           onDuplicate={duplicateCurrentButton}
           onDelete={handleDeleteButton}
           allRanges={allRanges}
+          folders={folders} 
           onOpenLegendPreview={handleOpenLegendPreview}
         />
 
         <LegendPreviewDialog
           isOpen={isLegendPreviewOpen}
-          onOpenChange={setIsLegendPreviewOpen}
+          onOpenChange={setIsLegendPreview} 
           linkedRange={linkedRangeForPreview}
           actionButtons={actionButtons}
           initialOverrides={editingButton?.legendOverrides || {}}
