@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PokerMatrix, getCombinations, TOTAL_POKER_COMBINATIONS } from "./PokerMatrix";
+import { PokerMatrix } from "./PokerMatrix";
 import { PokerCard } from "./PokerCard";
 import { TrainingResultsDialog } from "./TrainingResultsDialog";
 import { X, Play } from "lucide-react";
@@ -9,43 +9,12 @@ import { cn } from "@/lib/utils";
 import { useRangeContext, ActionButton } from "@/contexts/RangeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { allPossibleHands, generateBorderHands, getCombinations, TOTAL_POKER_COMBINATIONS } from "@/lib/poker-utils";
 
 interface TrainingSessionProps {
   training: any;
   onStop: () => void;
 }
-
-const allHands = [
-  'AA', 'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
-  'AKo', 'KK', 'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'K7s', 'K6s', 'K5s', 'K4s', 'K3s', 'K2s',
-  'AQo', 'KQo', 'QQ', 'QJs', 'QTs', 'Q9s', 'Q8s', 'Q7s', 'Q6s', 'Q5s', 'Q4s', 'Q3s', 'Q2s',
-  'AJo', 'KJo', 'QJo', 'JJ', 'JTs', 'J9s', 'J8s', 'J7s', 'J6s', 'J5s', 'J4s', 'J3s', 'J2s',
-  'ATo', 'KTo', 'QTo', 'JTo', 'TT', 'T9s', 'T8s', 'T7s', 'T6s', 'T5s', 'T4s', 'T3s', 'T2s',
-  'A9o', 'K9o', 'Q9o', 'J9o', 'T9o', '99', '98s', '97s', '96s', '95s', '94s', '93s', '92s',
-  'A8o', 'K8o', 'Q8o', 'J8o', 'T8o', '98o', '88', '87s', '86s', '85s', '84s', '83s', '82s',
-  'A7o', 'K7o', 'Q7o', 'J7o', 'T7o', '97o', '87o', '77', '76s', '75s', '74s', '73s', '72s',
-  'A6o', 'K6o', 'Q6o', 'J6o', 'T6o', '96o', '86o', '76o', '66', '65s', '64s', '63s', '62s',
-  'A5o', 'K5o', 'Q5o', 'J5o', 'T5o', '95o', '85o', '75o', '65o', '55', '54s', '53s', '52s',
-  'A4o', 'K4o', 'Q4o', 'J4o', 'T4o', '94o', '84o', '74o', '64o', '54o', '44', '43s', '42s',
-  'A3o', 'K3o', 'Q3o', 'J3o', 'T3o', '93o', '83o', '73o', '63o', '53o', '43o', '33', '32s',
-  'A2o', 'K2o', 'Q2o', 'J2o', 'T2o', '92o', '82o', '72o', '62o', '52o', '42o', '32o', '22'
-];
-
-const getCombinationsForHand = (hand: string): number => {
-  if (hand.length === 3) {
-    if (hand[2] === 's') return 4;
-    if (hand[2] === 'o') return 12;
-  }
-  if (hand.length === 2 && hand[0] === hand[1]) {
-    return 6;
-  }
-  return 0;
-};
-
-const allPossibleHands = allHands.flatMap(hand => {
-  const combos = getCombinationsForHand(hand);
-  return Array(combos).fill(hand);
-});
 
 const getActionColor = (actionId: string, allButtons: ActionButton[]): string => {
     if (actionId === 'fold') return '#6b7280';
@@ -76,7 +45,8 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
-  const [currentHandIndex, setCurrentHandIndex] = useState(0);
+  const [currentHand, setCurrentHand] = useState<string>('');
+  const [handsForTraining, setHandsForTraining] = useState<string[]>([]);
   const [currentRangeIndex, setCurrentRangeIndex] = useState(0);
   const [sessionStats, setSessionStats] = useState({
     startTime: Date.now(),
@@ -92,7 +62,7 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
   const [showResultsDialog, setShowResultsDialog] = useState(false);
   const [trainingResults, setTrainingResults] = useState<any>(null);
 
-  const getTrainingRanges = () => {
+  const trainingRanges = useMemo(() => {
     const ranges = [];
     if (!training.ranges) return [];
     for (const rangeId of training.ranges) {
@@ -104,22 +74,20 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
       }
     }
     return ranges;
-  };
+  }, [folders, training.ranges]);
 
-  const trainingRanges = getTrainingRanges();
   const currentRange = trainingRanges[currentRangeIndex];
   
-    // Helper function to calculate hand combinations for border-repeat mode
-    const getSelectedCombinationsCount = () => {
-      if (!userMatrix) return 0;
-      let count = 0;
-      Object.entries(userMatrix).forEach(([hand, action]) => {
-          const combinations = getCombinations(hand);
-          if (action && action !== 'fold' && typeof combinations === 'number' && !isNaN(combinations)) {
-              count += combinations;
-          }
-      });
-      return count;
+  const getSelectedCombinationsCount = () => {
+    if (!userMatrix) return 0;
+    let count = 0;
+    Object.entries(userMatrix).forEach(([hand, action]) => {
+        const combinations = getCombinations(hand);
+        if (action && action !== 'fold' && typeof combinations === 'number' && !isNaN(combinations)) {
+            count += combinations;
+        }
+    });
+    return count;
   };
   
   const getSelectedCombinationsPercentage = () => {
@@ -127,27 +95,55 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
       return TOTAL_POKER_COMBINATIONS > 0 ? Math.round((selectedCount / TOTAL_POKER_COMBINATIONS) * 100) : 0;
   };
 
-  const generateHands = () => {
-    if (training.type === 'classic') {
-      if (training.subtype === 'all-hands') {
-        return [...allPossibleHands].sort(() => Math.random() - 0.5);
-      } else if (training.subtype === 'border-check') {
-        return allHands.sort(() => Math.random() - 0.5).slice(0, 20);
-      }
-    }
-    return [];
+  const generateNewClassicHand = () => {
+    const randomIndex = Math.floor(Math.random() * allPossibleHands.length);
+    setCurrentHand(allPossibleHands[randomIndex]);
   };
 
-  const [hands] = useState(generateHands());
-  const currentHand = hands[currentHandIndex];
+  useEffect(() => {
+    if (!currentRange) return;
+
+    if (training.type === 'classic') {
+      if (training.subtype === 'all-hands') {
+        generateNewClassicHand();
+      } else if (training.subtype === 'border-check') {
+        const handPool = generateBorderHands(currentRange.hands, training.borderExpansionLevel);
+        setHandsForTraining(handPool);
+        if (handPool.length > 0) {
+          const randomIndex = Math.floor(Math.random() * handPool.length);
+          setCurrentHand(handPool[randomIndex]);
+        } else {
+            toast({
+                title: "Не удалось определить границу ренжа",
+                description: "Ренж может быть пустым, занимать всю матрицу или не содержать граничных рук.",
+                variant: "warning",
+            });
+            setCurrentHand('');
+        }
+      }
+    }
+  }, [training.type, training.subtype, training.borderExpansionLevel, currentRange]);
 
   const getCorrectAction = (hand: string) => {
-    if (!currentRange) return 'fold';
+    if (!currentRange || !hand) return 'fold';
     return currentRange.hands[hand] || 'fold';
   };
 
+  const filteredActionButtons = actionButtons.filter(button => {
+    if (!currentRange || !currentRange.hands) return false;
+
+    const usedActions = Object.values(currentRange.hands);
+    
+    if (button.type === 'simple') {
+      return usedActions.includes(button.id);
+    } else if (button.type === 'weighted') {
+      return usedActions.includes(button.id); 
+    }
+    return false;
+  });
+
   const handleClassicAnswer = (action: string) => {
-    if (feedback) return;
+    if (feedback || !currentHand) return;
 
     const correctAction = getCorrectAction(currentHand);
     const isCorrect = action === correctAction;
@@ -171,7 +167,7 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
     if (isCorrect) {
       setTimeout(() => {
         proceedToNext();
-      }, 3000);
+      }, 1500);
     } else {
       setShowCorrectRange(true);
     }
@@ -233,11 +229,16 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
 
   const proceedToNext = () => {
     if (training.type === 'classic') {
-      if (currentHandIndex < hands.length - 1) {
-        setCurrentHandIndex(prev => prev + 1);
-      } else {
-        finishTraining();
-        return;
+      if (training.subtype === 'all-hands') {
+        generateNewClassicHand();
+      } else if (training.subtype === 'border-check') {
+        if (handsForTraining.length > 0) {
+          const nextHandIndex = Math.floor(Math.random() * handsForTraining.length);
+          setCurrentHand(handsForTraining[nextHandIndex]);
+        } else {
+          finishTraining();
+          return;
+        }
       }
     } else {
       if (currentRangeIndex < trainingRanges.length - 1) {
@@ -376,7 +377,7 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
                     {currentRange.folderName} - {currentRange.name}
                   </h1>
                   <p className="text-muted-foreground">
-                    Текущая рука: {currentHand} ({currentHandIndex + 1}/{hands.length})
+                    Текущая рука: {currentHand}
                   </p>
                 </div>
                 
@@ -414,7 +415,7 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
                   
                   <div className="sm:hidden text-center mt-4">
                     <p className="text-muted-foreground text-sm">
-                      Рука {currentHandIndex + 1} из {hands.length}: <span className="font-bold text-primary">{currentHand}</span>
+                      Рука {sessionStats.hands.length + 1}: <span className="font-bold text-primary">{currentHand}</span>
                     </p>
                   </div>
                 </div>
@@ -432,7 +433,7 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
                   >
                     FOLD
                   </Button>
-                  {actionButtons.map((button) => (
+                  {filteredActionButtons.map((button) => (
                     <Button
                       key={button.id}
                       size="sm"
@@ -487,7 +488,7 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
                       />
                     </div>
                     <div className="flex justify-center gap-2 sm:gap-3 flex-wrap px-2 sm:px-4">
-                      {actionButtons.map((button) => (
+                      {filteredActionButtons.map((button) => (
                         <Button
                           key={button.id}
                           size="sm"
@@ -556,7 +557,7 @@ export const TrainingSession = ({ training, onStop }: TrainingSessionProps) => {
                     </div>
 
                     <div className="flex justify-center gap-2 sm:gap-3 flex-wrap px-2 sm:px-4">
-                      {actionButtons.map((button) => (
+                      {filteredActionButtons.map((button) => (
                         <Button
                           key={button.id}
                           size="sm"

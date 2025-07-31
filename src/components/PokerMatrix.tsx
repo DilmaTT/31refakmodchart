@@ -3,30 +3,7 @@ import { cn } from "@/lib/utils";
 import React, { useState, useEffect, useRef } from 'react';
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ActionButton } from "@/contexts/RangeContext";
-
-// Poker hand matrix data
-const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
-
-const HANDS = [];
-for (let i = 0; i < RANKS.length; i++) {
-  const row = [];
-  for (let j = 0; j < RANKS.length; j++) {
-    const rank1 = RANKS[i];
-    const rank2 = RANKS[j];
-
-    if (i === j) {
-      // Diagonal: Pairs
-      row.push(`${rank1}${rank1}`);
-    } else if (i < j) {
-      // Upper triangle: Suited hands (e.g., AKs, AQs)
-      row.push(`${rank1}${rank2}s`);
-    } else {
-      // Lower triangle: Offsuit hands (e.g., AKo, AQo)
-      row.push(`${rank2}${rank1}o`); // Note: rank2 then rank1 for offsuit to maintain standard naming (e.g., AKo not KAo)
-    }
-  }
-  HANDS.push(row);
-}
+import { HANDS } from "@/lib/poker-utils";
 
 interface PokerMatrixProps {
   selectedHands: Record<string, string>;
